@@ -45,6 +45,11 @@ public class BookingEventListener {
             "Booking hold expired",
             "Your seats for booking " + e.bookingId()
                 + " were released because payment wasn't completed in time.");
+        case BookingEvent.BookingReminder e -> sender.send(
+            e.userId(),
+            "Show reminder",
+            "Reminder: your booking " + e.bookingId()
+                + " is for a show starting at " + e.startsAt() + ".");
       }
     } catch (RuntimeException ex) {
       // AFTER_COMMIT: the DB change is already durable. A send failure

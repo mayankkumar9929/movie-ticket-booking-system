@@ -448,6 +448,16 @@ public class BookingService {
   }
 
   /**
+   * IDs of CONFIRMED bookings that haven't yet been reminded and whose
+   * show starts inside the lookahead window {@code (now, until]}. Same
+   * outer/inner split as the hold sweeper.
+   */
+  @Transactional(readOnly = true)
+  public List<UUID> findRemindableBookingIds(Instant now, Instant until) {
+    return bookings.findRemindableIds(now, until);
+  }
+
+  /**
    * Expires a single PENDING booking: flips it to EXPIRED and releases
    * its HELD seats back to AVAILABLE. Runs in its own transaction
    * ({@code REQUIRES_NEW}) so one bad row can't fail the whole sweep.
@@ -498,6 +508,44 @@ public class BookingService {
       log.debug("Sweeper lost race on booking={}: {}", bookingId, ex.getMessage());
       return false;
     }
+  }
+
+  /**
+   * Marks a CONFIRMED booking as reminded and publishes a reminder event.
+   * Runs in its own transaction ({@code REQUIRES_NEW}) so one bad row
+   * can't fail the whole sweep. Idempotent: a no-op if the booking has
+   * already been reminded, or is no longer CONFIRMED, or the show has
+   * started in the meantime.
+   *
+   * @return {@code true} if this call performed the reminder mark,
+   *     {@code false} otherwise
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public boolean remindOne(UUID bookingId) {
+    Booking b = bookings.findById(bookingId).orElse(null);
+    if (b == null
+        || b.getStatus() != BookingStatus.CONFIRMED
+        || b.getRemindedAt() != null) {
+      return false;
+    }
+    Instant now = Instant.now();
+    if (!now.isBefore(b.getShow().getStartsAt())) {
+      // Show has already started — nothing useful to remind about.
+      return false;
+    }
+
+    b.setRemindedAt(now);
+    try {
+      bookings.save(b);
+      bookings.flush();
+    } catch (OptimisticLockException | OptimisticLockingFailureException ex) {
+      log.debug("Reminder lost race on booking={}: {}", bookingId, ex.getMessage());
+      return false;
+    }
+
+    events.publishEvent(new BookingEvent.BookingReminder(
+        bookingId, b.getUserId(), b.getShow().getId(), b.getShow().getStartsAt()));
+    return true;
   }
 
   /**

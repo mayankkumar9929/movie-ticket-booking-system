@@ -82,4 +82,12 @@ public class Booking {
 
   @Column(name = "cancelled_at")
   private Instant cancelledAt;
+
+  /**
+   * When the pre-show reminder was sent for this booking, or null if it
+   * hasn't been. Used by the reminder scheduler as an idempotency marker
+   * so a booking is reminded exactly once even across restarts.
+   */
+  @Column(name = "reminded_at")
+  private Instant remindedAt;
 }
