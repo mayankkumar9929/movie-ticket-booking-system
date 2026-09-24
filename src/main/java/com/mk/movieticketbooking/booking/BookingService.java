@@ -4,6 +4,7 @@ import com.mk.movieticketbooking.common.exception.BadRequestException;
 import com.mk.movieticketbooking.common.exception.ConflictException;
 import com.mk.movieticketbooking.common.exception.NotFoundException;
 import com.mk.movieticketbooking.discount.DiscountService;
+import com.mk.movieticketbooking.notification.BookingEvent;
 import com.mk.movieticketbooking.payment.Payment;
 import com.mk.movieticketbooking.payment.PaymentGateway;
 import com.mk.movieticketbooking.payment.PaymentMethod;
@@ -19,6 +20,7 @@ import com.mk.movieticketbooking.show.ShowStatus;
 import jakarta.persistence.OptimisticLockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -62,6 +64,7 @@ public class BookingService {
   private final DiscountService discounts;
   private final RefundPolicyService refundPolicy;
   private final BookingProperties props;
+  private final ApplicationEventPublisher events;
 
   public BookingService(
       BookingRepository bookings,
@@ -71,7 +74,8 @@ public class BookingService {
       PaymentGateway gateway,
       DiscountService discounts,
       RefundPolicyService refundPolicy,
-      BookingProperties props) {
+      BookingProperties props,
+      ApplicationEventPublisher events) {
     this.bookings = bookings;
     this.shows = shows;
     this.showSeats = showSeats;
@@ -80,6 +84,7 @@ public class BookingService {
     this.discounts = discounts;
     this.refundPolicy = refundPolicy;
     this.props = props;
+    this.events = events;
   }
 
   /**
@@ -294,6 +299,16 @@ public class BookingService {
           "Booking state changed during confirmation; please retry");
     }
 
+    // Publish AFTER the state change is queued for commit; the listener
+    // runs AFTER_COMMIT so a rollback below (there isn't one, but future
+    // edits might add one) will not notify.
+    events.publishEvent(new BookingEvent.BookingConfirmed(
+        bookingId,
+        userId,
+        booking.getShow().getId(),
+        payment.getAmount(),
+        booking.getDiscountCode()));
+
     return new ConfirmResult(booking, seats, payment);
   }
 
@@ -395,6 +410,14 @@ public class BookingService {
           "Booking state changed during cancellation; please retry");
     }
 
+    BigDecimal refundedAmount =
+        refundRecord != null ? refundRecord.getAmount() : BigDecimal.ZERO;
+    events.publishEvent(new BookingEvent.BookingCancelled(
+        bookingId,
+        userId,
+        booking.getShow().getId(),
+        refundedAmount));
+
     return new CancelResult(booking, refundRecord);
   }
 
@@ -468,6 +491,8 @@ public class BookingService {
       bookings.save(b);
       showSeats.flush();
       bookings.flush();
+      events.publishEvent(new BookingEvent.BookingExpired(
+          bookingId, b.getUserId(), b.getShow().getId()));
       return true;
     } catch (OptimisticLockException | OptimisticLockingFailureException ex) {
       log.debug("Sweeper lost race on booking={}: {}", bookingId, ex.getMessage());
