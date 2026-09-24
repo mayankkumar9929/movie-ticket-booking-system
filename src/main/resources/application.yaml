@@ -38,3 +38,10 @@ app:
   notification:
     reminder-lookahead-minutes: 60
     reminder-sweep-interval-ms: 300000
+  pricing:
+    # Multiplier applied on top of PricingTier.multiplier based on the seat's
+    # physical category. Frozen into ShowSeat.priceAtShow at show creation.
+    category-surcharge:
+      STANDARD: "1.0"
+      PREMIUM: "1.5"
+      RECLINER: "2.0"
