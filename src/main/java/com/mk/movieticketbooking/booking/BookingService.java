@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -273,6 +274,70 @@ public class BookingService {
   @Transactional(readOnly = true)
   public List<Booking> listForUser(UUID userId) {
     return bookings.findByUserIdOrderByCreatedAtDesc(userId);
+  }
+
+  /**
+   * IDs of PENDING bookings whose hold has elapsed. Called by the sweeper
+   * as the outer "find work" step; each id is then expired in its own
+   * transaction so a single conflict doesn't roll back the whole batch.
+   */
+  @Transactional(readOnly = true)
+  public List<UUID> findExpiredHoldIds(Instant cutoff) {
+    return bookings.findByStatusAndExpiresAtBefore(BookingStatus.PENDING, cutoff)
+        .stream()
+        .map(Booking::getId)
+        .toList();
+  }
+
+  /**
+   * Expires a single PENDING booking: flips it to EXPIRED and releases
+   * its HELD seats back to AVAILABLE. Runs in its own transaction
+   * ({@code REQUIRES_NEW}) so one bad row can't fail the whole sweep.
+   * <p>
+   * No-op if the booking has advanced to CONFIRMED/CANCELLED/EXPIRED in
+   * the meantime, or if an optimistic-lock conflict fires (a concurrent
+   * confirm just claimed the seats — the sweep will re-check next tick).
+   *
+   * @return {@code true} if this call performed the expiry, {@code false}
+   *     if the booking was already advanced or a race was lost
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public boolean expireOne(UUID bookingId) {
+    Booking b = bookings.findById(bookingId).orElse(null);
+    if (b == null || b.getStatus() != BookingStatus.PENDING) {
+      return false;
+    }
+    Instant now = Instant.now();
+    if (b.getExpiresAt() == null || now.isBefore(b.getExpiresAt())) {
+      // Not actually expired yet — the "cutoff" the caller used was
+      // stale relative to expiresAt. Leave it alone.
+      return false;
+    }
+
+    List<ShowSeat> seats = showSeats.findByHoldBookingId(bookingId);
+    for (ShowSeat ss : seats) {
+      if (ss.getStatus() == ShowSeatStatus.HELD
+          && bookingId.equals(ss.getHoldBookingId())) {
+        ss.setStatus(ShowSeatStatus.AVAILABLE);
+        ss.setHeldUntil(null);
+        ss.setHoldBookingId(null);
+      }
+      // Any other state means a concurrent confirm won — leave the row
+      // untouched and let the version check below decide.
+    }
+    b.setStatus(BookingStatus.EXPIRED);
+    b.setExpiresAt(null);
+
+    try {
+      showSeats.saveAll(seats);
+      bookings.save(b);
+      showSeats.flush();
+      bookings.flush();
+      return true;
+    } catch (OptimisticLockException | OptimisticLockingFailureException ex) {
+      log.debug("Sweeper lost race on booking={}: {}", bookingId, ex.getMessage());
+      return false;
+    }
   }
 
   /**
