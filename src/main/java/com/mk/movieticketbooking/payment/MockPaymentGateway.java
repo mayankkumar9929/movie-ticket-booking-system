@@ -30,4 +30,11 @@ public class MockPaymentGateway implements PaymentGateway {
     }
     return ChargeResult.ok("mock_" + UUID.randomUUID());
   }
+
+  @Override
+  public RefundResult refund(String originalGatewayRef, BigDecimal amount) {
+    // Mock always succeeds; a real PSP occasionally declines refunds
+    // (e.g. the underlying card has been closed).
+    return RefundResult.ok("mock_refund_" + UUID.randomUUID());
+  }
 }

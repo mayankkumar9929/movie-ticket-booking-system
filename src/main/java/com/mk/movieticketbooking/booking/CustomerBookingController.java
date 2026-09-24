@@ -57,6 +57,15 @@ public class CustomerBookingController {
         PaymentResponse.from(result.payment()));
   }
 
+  @PostMapping("/{id}/cancel")
+  public CancelResponseBody cancel(
+      @AuthenticationPrincipal UUID userId, @PathVariable UUID id) {
+    var result = bookingService.cancel(userId, id);
+    return new CancelResponseBody(
+        BookingResponse.from(result.booking(), List.of()),
+        result.refund() == null ? null : PaymentResponse.from(result.refund()));
+  }
+
   @GetMapping("/{id}")
   public BookingResponse get(
       @AuthenticationPrincipal UUID userId, @PathVariable UUID id) {
@@ -83,4 +92,11 @@ public class CustomerBookingController {
 
   /** Composite response — the confirmed booking plus its payment record. */
   public record ConfirmResponseBody(BookingResponse booking, PaymentResponse payment) {}
+
+  /**
+   * Composite response — the cancelled booking plus the refund payment
+   * row. {@code refund} is null when the applicable refund percent was
+   * zero.
+   */
+  public record CancelResponseBody(BookingResponse booking, PaymentResponse refund) {}
 }

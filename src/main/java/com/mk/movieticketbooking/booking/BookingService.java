@@ -9,6 +9,7 @@ import com.mk.movieticketbooking.payment.PaymentGateway;
 import com.mk.movieticketbooking.payment.PaymentMethod;
 import com.mk.movieticketbooking.payment.PaymentRepository;
 import com.mk.movieticketbooking.payment.PaymentStatus;
+import com.mk.movieticketbooking.refund.RefundPolicyService;
 import com.mk.movieticketbooking.show.Show;
 import com.mk.movieticketbooking.show.ShowRepository;
 import com.mk.movieticketbooking.show.ShowSeat;
@@ -59,6 +60,7 @@ public class BookingService {
   private final PaymentRepository payments;
   private final PaymentGateway gateway;
   private final DiscountService discounts;
+  private final RefundPolicyService refundPolicy;
   private final BookingProperties props;
 
   public BookingService(
@@ -68,6 +70,7 @@ public class BookingService {
       PaymentRepository payments,
       PaymentGateway gateway,
       DiscountService discounts,
+      RefundPolicyService refundPolicy,
       BookingProperties props) {
     this.bookings = bookings;
     this.shows = shows;
@@ -75,6 +78,7 @@ public class BookingService {
     this.payments = payments;
     this.gateway = gateway;
     this.discounts = discounts;
+    this.refundPolicy = refundPolicy;
     this.props = props;
   }
 
@@ -293,6 +297,107 @@ public class BookingService {
     return new ConfirmResult(booking, seats, payment);
   }
 
+  /**
+   * Cancels a CONFIRMED booking, releases its seats back to AVAILABLE,
+   * and issues a refund per the active refund policy. Idempotent for
+   * already-CANCELLED bookings; refused for PENDING, EXPIRED, or
+   * post-showtime bookings.
+   * <p>
+   * The refund amount is computed from the paid amount (which already
+   * reflects any discount applied at confirmation), rounded to two
+   * decimal places. A zero-value refund still cancels the booking but
+   * does not create a refund payment row.
+   *
+   * @throws NotFoundException if the booking doesn't exist or doesn't
+   *     belong to {@code userId} (opaque to avoid an existence leak)
+   * @throws ConflictException if the booking cannot be cancelled from
+   *     its current state (or the show has already started)
+   */
+  public CancelResult cancel(UUID userId, UUID bookingId) {
+    Booking booking = bookings.findById(bookingId)
+        .orElseThrow(() -> NotFoundException.of("Booking", bookingId));
+    if (!booking.getUserId().equals(userId)) {
+      throw NotFoundException.of("Booking", bookingId);
+    }
+
+    if (booking.getStatus() == BookingStatus.CANCELLED) {
+      // Idempotent: surface whatever refund row already exists (may be
+      // absent if the applicable percent was zero).
+      Payment existingRefund = payments.findByBookingIdOrderByCreatedAtDesc(bookingId)
+          .stream()
+          .filter(p -> p.getStatus() == PaymentStatus.REFUNDED)
+          .findFirst()
+          .orElse(null);
+      return new CancelResult(booking, existingRefund);
+    }
+    if (booking.getStatus() != BookingStatus.CONFIRMED) {
+      throw new ConflictException(
+          "Booking is " + booking.getStatus() + " and cannot be cancelled");
+    }
+
+    Instant now = Instant.now();
+    if (!now.isBefore(booking.getShow().getStartsAt())) {
+      throw new ConflictException("Show has already started");
+    }
+
+    // The successful payment record holds the actual amount paid and the
+    // gateway reference the refund needs to reverse against.
+    Payment charge = payments.findByBookingIdOrderByCreatedAtDesc(bookingId).stream()
+        .filter(p -> p.getStatus() == PaymentStatus.SUCCESS)
+        .findFirst()
+        .orElseThrow(() -> new IllegalStateException(
+            "Confirmed booking has no SUCCESS payment: " + bookingId));
+
+    BigDecimal refundAmount =
+        refundPolicy.computeRefund(charge.getAmount(), now, booking.getShow().getStartsAt());
+
+    Payment refundRecord = null;
+    if (refundAmount.signum() > 0) {
+      PaymentGateway.RefundResult refunded =
+          gateway.refund(charge.getGatewayRef(), refundAmount);
+      refundRecord = Payment.builder()
+          .id(UUID.randomUUID())
+          .bookingId(bookingId)
+          .amount(refundAmount)
+          .method(charge.getMethod())
+          .status(refunded.success() ? PaymentStatus.REFUNDED : PaymentStatus.FAILED)
+          .gatewayRef(refunded.gatewayRef())
+          .failureReason(refunded.failureReason())
+          .createdAt(now)
+          .build();
+      payments.save(refundRecord);
+      if (!refunded.success()) {
+        // Gateway refused the refund; abort with the failure recorded so
+        // an operator can retry out of band.
+        throw new ConflictException(
+            "Refund declined by gateway: " + refunded.failureReason());
+      }
+    }
+
+    // Release the seats: back to AVAILABLE, clear the booking link.
+    List<ShowSeat> seats = showSeats.findByBookingId(bookingId);
+    for (ShowSeat ss : seats) {
+      ss.setStatus(ShowSeatStatus.AVAILABLE);
+      ss.setBookingId(null);
+    }
+
+    booking.setStatus(BookingStatus.CANCELLED);
+    booking.setCancelledAt(now);
+
+    try {
+      showSeats.saveAll(seats);
+      bookings.save(booking);
+      showSeats.flush();
+      bookings.flush();
+    } catch (OptimisticLockException | OptimisticLockingFailureException ex) {
+      log.warn("Cancel lost race on booking={}: {}", bookingId, ex.getMessage());
+      throw new ConflictException(
+          "Booking state changed during cancellation; please retry");
+    }
+
+    return new CancelResult(booking, refundRecord);
+  }
+
   @Transactional(readOnly = true)
   public BookingResult get(UUID bookingId) {
     Booking b = bookings.findById(bookingId)
@@ -372,14 +477,16 @@ public class BookingService {
 
   /**
    * Seats belonging to a booking. While PENDING they are attached via
-   * {@code holdBookingId}; once CONFIRMED (or REFUNDED after cancel) they
-   * are attached via {@code bookingId}.
+   * {@code holdBookingId}; once CONFIRMED they are attached via
+   * {@code bookingId}. Once EXPIRED or CANCELLED the seat linkage has
+   * been cleared and this returns empty (booking-side snapshot fields
+   * preserve the historical amount).
    */
   List<ShowSeat> seatsFor(Booking b) {
     return switch (b.getStatus()) {
       case PENDING -> showSeats.findByHoldBookingId(b.getId());
-      case CONFIRMED, CANCELLED -> showSeats.findByBookingId(b.getId());
-      case EXPIRED -> List.of();
+      case CONFIRMED -> showSeats.findByBookingId(b.getId());
+      case EXPIRED, CANCELLED -> List.of();
     };
   }
 
@@ -388,4 +495,10 @@ public class BookingService {
 
   /** Result of a successful (or idempotent) confirmation. */
   public record ConfirmResult(Booking booking, List<ShowSeat> seats, Payment payment) {}
+
+  /**
+   * Result of a cancellation. {@code refund} is null if the applicable
+   * refund percent was zero (no payment row created).
+   */
+  public record CancelResult(Booking booking, Payment refund) {}
 }

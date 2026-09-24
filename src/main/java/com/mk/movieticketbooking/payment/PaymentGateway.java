@@ -23,6 +23,13 @@ public interface PaymentGateway {
   ChargeResult charge(
       UUID bookingId, BigDecimal amount, PaymentMethod method, String instrument);
 
+  /**
+   * Refunds a previously-successful charge (identified by its
+   * {@code gatewayRef}). Real gateways may partial-refund; here we
+   * simply pass the intended amount.
+   */
+  RefundResult refund(String originalGatewayRef, BigDecimal amount);
+
   /** Outcome of a charge attempt. */
   record ChargeResult(
       boolean success, String gatewayRef, String failureReason) {
@@ -33,6 +40,18 @@ public interface PaymentGateway {
 
     public static ChargeResult failed(String reason) {
       return new ChargeResult(false, null, reason);
+    }
+  }
+
+  /** Outcome of a refund attempt. */
+  record RefundResult(boolean success, String gatewayRef, String failureReason) {
+
+    public static RefundResult ok(String ref) {
+      return new RefundResult(true, ref, null);
+    }
+
+    public static RefundResult failed(String reason) {
+      return new RefundResult(false, null, reason);
     }
   }
 }
