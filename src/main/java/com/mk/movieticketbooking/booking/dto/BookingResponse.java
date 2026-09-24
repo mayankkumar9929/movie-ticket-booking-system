@@ -15,6 +15,9 @@ public record BookingResponse(
     UUID showId,
     BookingStatus status,
     BigDecimal totalAmount,
+    String discountCode,
+    BigDecimal discountAmount,
+    BigDecimal amountPayable,
     List<HeldSeat> seats,
     Instant createdAt,
     Instant expiresAt,
@@ -34,12 +37,19 @@ public record BookingResponse(
   }
 
   public static BookingResponse from(Booking b, List<ShowSeat> seats) {
+    BigDecimal discount = b.getDiscountAmount();
+    BigDecimal payable = discount == null
+        ? b.getTotalAmount()
+        : b.getTotalAmount().subtract(discount);
     return new BookingResponse(
         b.getId(),
         b.getUserId(),
         b.getShow().getId(),
         b.getStatus(),
         b.getTotalAmount(),
+        b.getDiscountCode(),
+        discount,
+        payable,
         seats.stream().map(HeldSeat::from).toList(),
         b.getCreatedAt(),
         b.getExpiresAt(),

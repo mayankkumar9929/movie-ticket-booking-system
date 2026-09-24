@@ -50,7 +50,8 @@ public class CustomerBookingController {
       @AuthenticationPrincipal UUID userId,
       @PathVariable UUID id,
       @Valid @RequestBody ConfirmRequest req) {
-    var result = bookingService.confirm(userId, id, req.method(), req.instrument());
+    var result = bookingService.confirm(
+        userId, id, req.method(), req.instrument(), req.discountCode());
     return new ConfirmResponseBody(
         BookingResponse.from(result.booking(), result.seats()),
         PaymentResponse.from(result.payment()));

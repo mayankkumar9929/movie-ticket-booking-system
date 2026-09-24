@@ -54,6 +54,18 @@ public class Booking {
   @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
   private BigDecimal totalAmount;
 
+  /**
+   * Discount code applied at confirmation (uppercase, snapshot). Null if
+   * none was used. Frozen here so admin edits to the discount don't
+   * rewrite booking history.
+   */
+  @Column(name = "discount_code", length = 40)
+  private String discountCode;
+
+  /** Amount subtracted by the discount code at confirmation. Null if none. */
+  @Column(name = "discount_amount", precision = 12, scale = 2)
+  private BigDecimal discountAmount;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false, length = 20)
   private BookingStatus status;

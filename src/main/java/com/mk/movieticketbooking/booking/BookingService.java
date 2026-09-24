@@ -3,6 +3,7 @@ package com.mk.movieticketbooking.booking;
 import com.mk.movieticketbooking.common.exception.BadRequestException;
 import com.mk.movieticketbooking.common.exception.ConflictException;
 import com.mk.movieticketbooking.common.exception.NotFoundException;
+import com.mk.movieticketbooking.discount.DiscountService;
 import com.mk.movieticketbooking.payment.Payment;
 import com.mk.movieticketbooking.payment.PaymentGateway;
 import com.mk.movieticketbooking.payment.PaymentMethod;
@@ -57,6 +58,7 @@ public class BookingService {
   private final ShowSeatRepository showSeats;
   private final PaymentRepository payments;
   private final PaymentGateway gateway;
+  private final DiscountService discounts;
   private final BookingProperties props;
 
   public BookingService(
@@ -65,12 +67,14 @@ public class BookingService {
       ShowSeatRepository showSeats,
       PaymentRepository payments,
       PaymentGateway gateway,
+      DiscountService discounts,
       BookingProperties props) {
     this.bookings = bookings;
     this.shows = shows;
     this.showSeats = showSeats;
     this.payments = payments;
     this.gateway = gateway;
+    this.discounts = discounts;
     this.props = props;
   }
 
@@ -163,18 +167,25 @@ public class BookingService {
    * success, flipping its HELD seats to BOOKED.
    * <p>
    * The whole operation runs in one transaction so the payment record,
-   * booking state, and seat state advance together. Idempotent for
-   * already-CONFIRMED bookings; refused for EXPIRED, CANCELLED, or
-   * expired-but-not-yet-swept holds.
+   * booking state, seat state, and discount redemption advance together.
+   * Idempotent for already-CONFIRMED bookings; refused for EXPIRED,
+   * CANCELLED, or expired-but-not-yet-swept holds.
+   * <p>
+   * A {@code discountCode} is optional. If supplied it is validated,
+   * priced, and redeemed atomically alongside the confirmation; the
+   * gateway is charged the discounted amount, and the applied code and
+   * amount are snapshotted onto the booking. A failed charge does not
+   * consume a discount usage.
    *
    * @throws NotFoundException if the booking doesn't exist or doesn't
    *     belong to {@code userId} (opaque to avoid an existence leak)
    * @throws ConflictException if the booking has expired, been cancelled,
    *     or its seats have been released by the sweeper
-   * @throws BadRequestException if the gateway declines the payment
+   * @throws BadRequestException if the gateway declines the payment or
+   *     the discount code is unusable
    */
   public ConfirmResult confirm(UUID userId, UUID bookingId, PaymentMethod method,
-      String instrument) {
+      String instrument, String discountCode) {
     Booking booking = bookings.findById(bookingId)
         .orElseThrow(() -> NotFoundException.of("Booking", bookingId));
 
@@ -214,13 +225,23 @@ public class BookingService {
       }
     }
 
+    // Resolve and apply a discount code if one was supplied. The quote
+    // step validates and computes; the redeem step atomically bumps the
+    // usage count under optimistic locking.
+    DiscountService.Application applied = null;
+    BigDecimal amountPayable = booking.getTotalAmount();
+    if (discountCode != null && !discountCode.isBlank()) {
+      applied = discounts.quote(discountCode, booking.getTotalAmount());
+      amountPayable = booking.getTotalAmount().subtract(applied.amount());
+    }
+
     PaymentGateway.ChargeResult charge =
-        gateway.charge(bookingId, booking.getTotalAmount(), method, instrument);
+        gateway.charge(bookingId, amountPayable, method, instrument);
 
     Payment payment = Payment.builder()
         .id(UUID.randomUUID())
         .bookingId(bookingId)
-        .amount(booking.getTotalAmount())
+        .amount(amountPayable)
         .method(method)
         .status(charge.success() ? PaymentStatus.SUCCESS : PaymentStatus.FAILED)
         .gatewayRef(charge.gatewayRef())
@@ -231,8 +252,17 @@ public class BookingService {
 
     if (!charge.success()) {
       // Persist the FAILED payment record and abort. Seats stay HELD;
-      // the customer can retry until the hold expires.
+      // the customer can retry until the hold expires. No discount
+      // usage is consumed for a failed charge.
       throw new BadRequestException("Payment declined: " + charge.failureReason());
+    }
+
+    if (applied != null) {
+      // Redeem inside the confirm transaction so a concurrent race for
+      // the last slot rolls back the whole confirmation on failure.
+      discounts.redeem(applied.discount().getId());
+      booking.setDiscountCode(applied.discount().getCode());
+      booking.setDiscountAmount(applied.amount());
     }
 
     for (ShowSeat ss : seats) {
