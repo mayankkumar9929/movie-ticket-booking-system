@@ -3,6 +3,11 @@ package com.mk.movieticketbooking.booking;
 import com.mk.movieticketbooking.common.exception.BadRequestException;
 import com.mk.movieticketbooking.common.exception.ConflictException;
 import com.mk.movieticketbooking.common.exception.NotFoundException;
+import com.mk.movieticketbooking.payment.Payment;
+import com.mk.movieticketbooking.payment.PaymentGateway;
+import com.mk.movieticketbooking.payment.PaymentMethod;
+import com.mk.movieticketbooking.payment.PaymentRepository;
+import com.mk.movieticketbooking.payment.PaymentStatus;
 import com.mk.movieticketbooking.show.Show;
 import com.mk.movieticketbooking.show.ShowRepository;
 import com.mk.movieticketbooking.show.ShowSeat;
@@ -49,16 +54,22 @@ public class BookingService {
   private final BookingRepository bookings;
   private final ShowRepository shows;
   private final ShowSeatRepository showSeats;
+  private final PaymentRepository payments;
+  private final PaymentGateway gateway;
   private final BookingProperties props;
 
   public BookingService(
       BookingRepository bookings,
       ShowRepository shows,
       ShowSeatRepository showSeats,
+      PaymentRepository payments,
+      PaymentGateway gateway,
       BookingProperties props) {
     this.bookings = bookings;
     this.shows = shows;
     this.showSeats = showSeats;
+    this.payments = payments;
+    this.gateway = gateway;
     this.props = props;
   }
 
@@ -146,11 +157,116 @@ public class BookingService {
     return new BookingResult(booking, seats);
   }
 
+  /**
+   * Confirms a PENDING booking by charging the payment gateway and, on
+   * success, flipping its HELD seats to BOOKED.
+   * <p>
+   * The whole operation runs in one transaction so the payment record,
+   * booking state, and seat state advance together. Idempotent for
+   * already-CONFIRMED bookings; refused for EXPIRED, CANCELLED, or
+   * expired-but-not-yet-swept holds.
+   *
+   * @throws NotFoundException if the booking doesn't exist or doesn't
+   *     belong to {@code userId} (opaque to avoid an existence leak)
+   * @throws ConflictException if the booking has expired, been cancelled,
+   *     or its seats have been released by the sweeper
+   * @throws BadRequestException if the gateway declines the payment
+   */
+  public ConfirmResult confirm(UUID userId, UUID bookingId, PaymentMethod method,
+      String instrument) {
+    Booking booking = bookings.findById(bookingId)
+        .orElseThrow(() -> NotFoundException.of("Booking", bookingId));
+
+    if (!booking.getUserId().equals(userId)) {
+      // Ownership check lives here so a compromised controller can't
+      // sidestep it. NotFound (not Forbidden) to avoid existence leak.
+      throw NotFoundException.of("Booking", bookingId);
+    }
+
+    if (booking.getStatus() == BookingStatus.CONFIRMED) {
+      // Idempotent: return the existing payment.
+      Payment existing = payments.findByBookingIdOrderByCreatedAtDesc(bookingId).stream()
+          .filter(p -> p.getStatus() == PaymentStatus.SUCCESS)
+          .findFirst()
+          .orElseThrow(() -> new IllegalStateException(
+              "Confirmed booking has no SUCCESS payment: " + bookingId));
+      return new ConfirmResult(booking, seatsFor(booking), existing);
+    }
+    if (booking.getStatus() != BookingStatus.PENDING) {
+      throw new ConflictException(
+          "Booking is " + booking.getStatus() + " and cannot be confirmed");
+    }
+    Instant now = Instant.now();
+    if (booking.getExpiresAt() != null && !now.isBefore(booking.getExpiresAt())) {
+      throw new ConflictException("Booking hold has expired");
+    }
+
+    List<ShowSeat> seats = showSeats.findByHoldBookingId(bookingId);
+    if (seats.isEmpty()) {
+      // Sweeper released the seats between the read above and here.
+      throw new ConflictException("Booking hold has expired");
+    }
+    for (ShowSeat ss : seats) {
+      if (ss.getStatus() != ShowSeatStatus.HELD
+          || !bookingId.equals(ss.getHoldBookingId())) {
+        throw new ConflictException("Booking hold has expired");
+      }
+    }
+
+    PaymentGateway.ChargeResult charge =
+        gateway.charge(bookingId, booking.getTotalAmount(), method, instrument);
+
+    Payment payment = Payment.builder()
+        .id(UUID.randomUUID())
+        .bookingId(bookingId)
+        .amount(booking.getTotalAmount())
+        .method(method)
+        .status(charge.success() ? PaymentStatus.SUCCESS : PaymentStatus.FAILED)
+        .gatewayRef(charge.gatewayRef())
+        .failureReason(charge.failureReason())
+        .createdAt(now)
+        .build();
+    payments.save(payment);
+
+    if (!charge.success()) {
+      // Persist the FAILED payment record and abort. Seats stay HELD;
+      // the customer can retry until the hold expires.
+      throw new BadRequestException("Payment declined: " + charge.failureReason());
+    }
+
+    for (ShowSeat ss : seats) {
+      ss.setStatus(ShowSeatStatus.BOOKED);
+      ss.setHeldUntil(null);
+      ss.setHoldBookingId(null);
+      ss.setBookingId(bookingId);
+    }
+    booking.setStatus(BookingStatus.CONFIRMED);
+    booking.setConfirmedAt(now);
+    booking.setExpiresAt(null);
+
+    try {
+      showSeats.saveAll(seats);
+      bookings.save(booking);
+      showSeats.flush();
+      bookings.flush();
+    } catch (OptimisticLockException | OptimisticLockingFailureException ex) {
+      // Concurrent state change on the seat rows (e.g. sweeper firing at
+      // the same instant). The payment succeeded but we can't complete
+      // the booking — surface as 409 and rely on the payment record for
+      // an out-of-band reconcile in a real system.
+      log.warn("Confirm lost the race on booking={}: {}", bookingId, ex.getMessage());
+      throw new ConflictException(
+          "Booking state changed during confirmation; please retry");
+    }
+
+    return new ConfirmResult(booking, seats, payment);
+  }
+
   @Transactional(readOnly = true)
   public BookingResult get(UUID bookingId) {
     Booking b = bookings.findById(bookingId)
         .orElseThrow(() -> NotFoundException.of("Booking", bookingId));
-    List<ShowSeat> seats = showSeats.findByHoldBookingId(bookingId);
+    List<ShowSeat> seats = seatsFor(b);
     return new BookingResult(b, seats);
   }
 
@@ -159,6 +275,22 @@ public class BookingService {
     return bookings.findByUserIdOrderByCreatedAtDesc(userId);
   }
 
+  /**
+   * Seats belonging to a booking. While PENDING they are attached via
+   * {@code holdBookingId}; once CONFIRMED (or REFUNDED after cancel) they
+   * are attached via {@code bookingId}.
+   */
+  List<ShowSeat> seatsFor(Booking b) {
+    return switch (b.getStatus()) {
+      case PENDING -> showSeats.findByHoldBookingId(b.getId());
+      case CONFIRMED, CANCELLED -> showSeats.findByBookingId(b.getId());
+      case EXPIRED -> List.of();
+    };
+  }
+
   /** Pair of a booking and the seats it currently holds (or held while HELD). */
   public record BookingResult(Booking booking, List<ShowSeat> seats) {}
+
+  /** Result of a successful (or idempotent) confirmation. */
+  public record ConfirmResult(Booking booking, List<ShowSeat> seats, Payment payment) {}
 }

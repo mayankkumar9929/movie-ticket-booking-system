@@ -14,6 +14,8 @@ public interface ShowSeatRepository extends JpaRepository<ShowSeat, UUID> {
 
   List<ShowSeat> findByHoldBookingId(UUID holdBookingId);
 
+  List<ShowSeat> findByBookingId(UUID bookingId);
+
   boolean existsByShowId(UUID showId);
 
   void deleteByShowId(UUID showId);

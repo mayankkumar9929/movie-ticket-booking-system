@@ -75,6 +75,14 @@ public class ShowSeat {
   private UUID holdBookingId;
 
   /**
+   * The Booking that owns this seat once BOOKED. Set at confirmation and
+   * kept through refunds so the customer's booking history has stable
+   * seat details even after {@code holdBookingId} is cleared.
+   */
+  @Column(name = "booking_id")
+  private UUID bookingId;
+
+  /**
    * Price frozen at show-creation time so admin edits to PricingTier /
    * category surcharges do not affect issued or in-flight bookings.
    */

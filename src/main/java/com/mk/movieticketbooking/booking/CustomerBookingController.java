@@ -1,7 +1,9 @@
 package com.mk.movieticketbooking.booking;
 
 import com.mk.movieticketbooking.booking.dto.BookingResponse;
+import com.mk.movieticketbooking.booking.dto.ConfirmRequest;
 import com.mk.movieticketbooking.booking.dto.HoldRequest;
+import com.mk.movieticketbooking.booking.dto.PaymentResponse;
 import com.mk.movieticketbooking.common.exception.NotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +45,17 @@ public class CustomerBookingController {
         .body(body);
   }
 
+  @PostMapping("/{id}/confirm")
+  public ConfirmResponseBody confirm(
+      @AuthenticationPrincipal UUID userId,
+      @PathVariable UUID id,
+      @Valid @RequestBody ConfirmRequest req) {
+    var result = bookingService.confirm(userId, id, req.method(), req.instrument());
+    return new ConfirmResponseBody(
+        BookingResponse.from(result.booking(), result.seats()),
+        PaymentResponse.from(result.payment()));
+  }
+
   @GetMapping("/{id}")
   public BookingResponse get(
       @AuthenticationPrincipal UUID userId, @PathVariable UUID id) {
@@ -56,8 +69,6 @@ public class CustomerBookingController {
 
   @GetMapping("/me")
   public List<BookingResponse> mine(@AuthenticationPrincipal UUID userId) {
-    // Seat details are attached via holdBookingId, which is populated
-    // only while a booking is PENDING (HELD seats).
     return bookingService.listForUser(userId).stream()
         .map(b -> BookingResponse.from(b, bookingService.get(b.getId()).seats()))
         .toList();
@@ -68,4 +79,7 @@ public class CustomerBookingController {
     return auth != null
         && auth.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN"));
   }
+
+  /** Composite response — the confirmed booking plus its payment record. */
+  public record ConfirmResponseBody(BookingResponse booking, PaymentResponse payment) {}
 }
