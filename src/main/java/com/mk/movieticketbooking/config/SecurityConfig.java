@@ -17,6 +17,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * Route rules:
  * <ul>
  *   <li>{@code /api/v1/auth/**} — public (register, login)</li>
+ *   <li>{@code /api/v1/public/**} — public (browse catalog and shows)</li>
  *   <li>{@code /h2-console/**} — public in dev; disable or restrict for prod</li>
  *   <li>{@code /error} — public so error responses render without recursion</li>
  *   <li>{@code /api/v1/admin/**} — {@code ROLE_ADMIN}</li>
@@ -51,6 +52,7 @@ public class SecurityConfig {
         .formLogin(form -> form.disable())
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/api/v1/auth/**").permitAll()
+            .requestMatchers("/api/v1/public/**").permitAll()
             .requestMatchers("/h2-console/**").permitAll()
             .requestMatchers("/error").permitAll()
             .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")

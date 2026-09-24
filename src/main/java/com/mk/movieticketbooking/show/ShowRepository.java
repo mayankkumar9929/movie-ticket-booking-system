@@ -33,4 +33,35 @@ public interface ShowRepository extends JpaRepository<Show, UUID> {
       @Param("screenId") UUID screenId,
       @Param("startsAt") Instant startsAt,
       @Param("endsAt") Instant endsAt);
+
+  /**
+   * Public catalog query: SCHEDULED shows filtered by movie, city (via
+   * screen → theater → city), and a start-time window. Any nullable filter
+   * is a wildcard.
+   */
+  @Query("""
+      SELECT s FROM Show s
+       WHERE s.status = com.mk.movieticketbooking.show.ShowStatus.SCHEDULED
+         AND (:movieId IS NULL OR s.movie.id = :movieId)
+         AND (:cityId  IS NULL OR s.screen.theater.city.id = :cityId)
+         AND (:from    IS NULL OR s.startsAt >= :from)
+         AND (:to      IS NULL OR s.startsAt <  :to)
+       ORDER BY s.startsAt ASC
+      """)
+  List<Show> findScheduled(
+      @Param("movieId") UUID movieId,
+      @Param("cityId") UUID cityId,
+      @Param("from") Instant from,
+      @Param("to") Instant to);
+
+  /**
+   * Distinct movies that currently have a SCHEDULED show in the given city
+   * (or across all cities if {@code cityId} is null).
+   */
+  @Query("""
+      SELECT DISTINCT s.movie.id FROM Show s
+       WHERE s.status = com.mk.movieticketbooking.show.ShowStatus.SCHEDULED
+         AND (:cityId IS NULL OR s.screen.theater.city.id = :cityId)
+      """)
+  List<UUID> findMovieIdsWithScheduledShows(@Param("cityId") UUID cityId);
 }
