@@ -18,6 +18,15 @@
 ### Out (explicit non-goals from problem statement)
 - No UI, no containerization, no CI/CD, no OAuth/SSO/MFA, no microservices, no real payment integration, no production observability.
 
+### Runtime target
+**Local-only, single-JVM.** Runs on a developer machine — no cloud deployment, no multi-instance / horizontally-scaled setup. Concurrency across many simultaneous users on this one JVM is still fully in scope (Tomcat's request threads race on `ShowSeat` rows; optimistic locking serializes them). What we skip because we're single-instance:
+- H2 in-memory / file DB is acceptable — no need for Postgres, Flyway migrations, or Testcontainers.
+- JWT signing key lives in `application.yaml`; env-var injection is not wired up.
+- `@Scheduled` runs in-process on one node; no distributed lock coordination needed.
+- Async notifications use in-process `@Async` + `ApplicationEventPublisher`; no external broker.
+- CORS, HTTPS termination, readiness/liveness probes, metrics endpoints are out of scope.
+- H2 console is left enabled at `/h2-console` for inspection.
+
 ---
 
 ## 2. Domain Model

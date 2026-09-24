@@ -1,3 +1,40 @@
 spring:
   application:
     name: movie-ticket-booking-system
+
+  datasource:
+    url: jdbc:h2:file:./data/mtbs;MODE=LEGACY;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+server:
+  port: 8080
+
+# Application-specific configuration.
+# All values here are local defaults.
+app:
+  security:
+    jwt:
+      # HS256 secret. DEV ONLY.
+      secret: "dev-secret-change-me-dev-secret-change-me-dev-secret-change-me"
+      expiration-minutes: 1440   # 24h
+  booking:
+    hold-ttl-minutes: 5
+    hold-sweep-interval-ms: 30000
+  notification:
+    reminder-lookahead-minutes: 60
+    reminder-sweep-interval-ms: 300000
