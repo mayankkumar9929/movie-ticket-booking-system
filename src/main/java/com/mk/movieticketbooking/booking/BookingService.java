@@ -6,6 +6,7 @@ import com.mk.movieticketbooking.common.exception.NotFoundException;
 import com.mk.movieticketbooking.discount.DiscountService;
 import com.mk.movieticketbooking.notification.BookingEvent;
 import com.mk.movieticketbooking.payment.Payment;
+import com.mk.movieticketbooking.payment.PaymentAudit;
 import com.mk.movieticketbooking.payment.PaymentGateway;
 import com.mk.movieticketbooking.payment.PaymentMethod;
 import com.mk.movieticketbooking.payment.PaymentRepository;
@@ -60,6 +61,7 @@ public class BookingService {
   private final ShowRepository shows;
   private final ShowSeatRepository showSeats;
   private final PaymentRepository payments;
+  private final PaymentAudit paymentAudit;
   private final PaymentGateway gateway;
   private final DiscountService discounts;
   private final RefundPolicyService refundPolicy;
@@ -71,6 +73,7 @@ public class BookingService {
       ShowRepository shows,
       ShowSeatRepository showSeats,
       PaymentRepository payments,
+      PaymentAudit paymentAudit,
       PaymentGateway gateway,
       DiscountService discounts,
       RefundPolicyService refundPolicy,
@@ -80,6 +83,7 @@ public class BookingService {
     this.shows = shows;
     this.showSeats = showSeats;
     this.payments = payments;
+    this.paymentAudit = paymentAudit;
     this.gateway = gateway;
     this.discounts = discounts;
     this.refundPolicy = refundPolicy;
@@ -257,14 +261,16 @@ public class BookingService {
         .failureReason(charge.failureReason())
         .createdAt(now)
         .build();
-    payments.save(payment);
 
     if (!charge.success()) {
-      // Persist the FAILED payment record and abort. Seats stay HELD;
+      // Record the FAILED payment in an isolated transaction so the
+      // audit row survives the outer rollback below. Seats stay HELD;
       // the customer can retry until the hold expires. No discount
       // usage is consumed for a failed charge.
+      paymentAudit.recordIndependently(payment);
       throw new BadRequestException("Payment declined: " + charge.failureReason());
     }
+    payments.save(payment);
 
     if (applied != null) {
       // Redeem inside the confirm transaction so a concurrent race for

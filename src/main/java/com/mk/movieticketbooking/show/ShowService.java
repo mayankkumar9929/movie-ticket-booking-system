@@ -101,7 +101,10 @@ public class ShowService {
         .status(ShowStatus.SCHEDULED)
         .createdAt(Instant.now())
         .build();
-    shows.save(show);
+    // saveAndFlush so the Show row exists before we persist ShowSeats
+    // that reference it — Hibernate 7's insert-ordering check otherwise
+    // treats the Show as an unresolved transient parent.
+    shows.saveAndFlush(show);
 
     List<ShowSeat> materialized = new ArrayList<>(screenSeats.size());
     for (Seat seat : screenSeats) {

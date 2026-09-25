@@ -48,7 +48,7 @@ public class Discount {
   private DiscountType type;
 
   /** For PERCENT: 0–100 (e.g. 10 = 10%). For FLAT: money amount. */
-  @Column(name = "value", nullable = false, precision = 12, scale = 2)
+  @Column(name = "amount_value", nullable = false, precision = 12, scale = 2)
   private BigDecimal value;
 
   /** Cap on the amount discounted when {@code type == PERCENT}. Null = no cap. */
