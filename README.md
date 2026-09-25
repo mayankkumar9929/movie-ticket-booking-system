@@ -2,7 +2,7 @@
 
 A Spring Boot service for a movie ticket booking platform: multiple cities, theaters, screens, shows, and seat-level bookings with time-bound holds, discount codes, payment/refunds, and async notifications. Concurrency-safe seat allocation is the marquee correctness concern.
 
-The full design rationale lives in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The original take-home prompt lives in [`problem.md`](problem.md). This README is the practical guide: how to run it, how to call it, and what you should know before poking around.
+The full design rationale lives in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). This README is the practical guide: how to run it, how to call it, and what you should know before poking around.
 
 ## Table of contents
 
@@ -285,7 +285,7 @@ com.mk.movieticketbooking
 
 ## What's out of scope
 
-Per the [problem statement](problem.md) and the [architecture doc](docs/ARCHITECTURE.md):
+Per the [architecture doc](docs/ARCHITECTURE.md):
 
 - **No UI.** REST only.
 - **No cloud / containerization / CI/CD.** Runs on a laptop.
