@@ -1,0 +1,35 @@
+# Test-profile overrides. In-memory H2 so tests don't collide with the
+# dev file DB (`data/mtbs`), and a very short hold TTL so the sweeper
+# tests finish in about a second.
+spring:
+  datasource:
+    url: jdbc:h2:mem:mtbs-test;MODE=LEGACY;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  h2:
+    console:
+      enabled: false
+
+app:
+  security:
+    jwt:
+      secret: "test-secret-test-secret-test-secret-test-secret-test-secret-xx"
+      expiration-minutes: 60
+  booking:
+    hold-ttl-minutes: 1              # overridden per-test where needed
+    hold-sweep-interval-ms: 500      # keep the sweeper responsive in tests
+  notification:
+    # Big lookahead + big interval so the reminder scheduler doesn't
+    # fire during focused booking tests.
+    reminder-lookahead-minutes: 1
+    reminder-sweep-interval-ms: 3600000
+  pricing:
+    category-surcharge:
+      STANDARD: "1.0"
+      PREMIUM: "1.5"
+      RECLINER: "2.0"
