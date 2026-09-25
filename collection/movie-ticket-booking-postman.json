@@ -1,0 +1,918 @@
+{
+  "info": {
+    "name": "movie-ticket-booking",
+    "description": null,
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Register-user",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "disabled": false,
+            "type": "default"
+          }
+        ],
+        "description": "",
+        "url": {
+          "raw": "https://localhost:8080/api/v1/auth/register",
+          "protocol": "https",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@demo.com\",\n  \"password\": \"admin1234\",\n  \"name\": \"Admin\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "login-customer",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "disabled": false,
+            "type": "default"
+          }
+        ],
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/auth/login",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"alice@example.com\",\n  \"password\": \"correcthorse\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "login-admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "disabled": false,
+            "type": "default"
+          }
+        ],
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/auth/login",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@demo.com\",\n  \"password\": \"admin1234\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "cities",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "disabled": false,
+            "type": "default"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{ADMIN_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/admin/cities",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "cities"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Bangalore\",\n  \"state\": \"KA\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "theater",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "disabled": false,
+            "type": "default"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{ADMIN_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/admin/theaters",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "theaters"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"PVR Forum\",\n  \"address\": \"Koramangala\",\n  \"cityId\": \"{{CITY_ID}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "screens",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "disabled": false,
+            "type": "default"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{ADMIN_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/admin/theaters/{{THEATER_ID}}/screens",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "theaters",
+            "{{THEATER_ID}}",
+            "screens"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Screen 1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "seats-bulk",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "disabled": false,
+            "type": "default"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{ADMIN_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/admin/screens/{{screenId}}/seats:bulk",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "screens",
+            "{{screenId}}",
+            "seats:bulk"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"seats\": [\n    {\n      \"rowLabel\": \"A\",\n      \"seatNumber\": 1,\n      \"category\": \"STANDARD\"\n    },\n    {\n      \"rowLabel\": \"A\",\n      \"seatNumber\": 2,\n      \"category\": \"STANDARD\"\n    },\n    {\n      \"rowLabel\": \"A\",\n      \"seatNumber\": 3,\n      \"category\": \"STANDARD\"\n    },\n    {\n      \"rowLabel\": \"B\",\n      \"seatNumber\": 1,\n      \"category\": \"PREMIUM\"\n    },\n    {\n      \"rowLabel\": \"B\",\n      \"seatNumber\": 2,\n      \"category\": \"PREMIUM\"\n    },\n    {\n      \"rowLabel\": \"B\",\n      \"seatNumber\": 3,\n      \"category\": \"PREMIUM\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "movie",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "disabled": false,
+            "type": "default"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{ADMIN_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/admin/movies",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "movies"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Inception\",\n  \"durationMinutes\": 148,\n  \"language\": \"English\",\n  \"rating\": \"UA\",\n  \"synopsis\": \"Dreams.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "pricing-tier",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "disabled": false,
+            "type": "default"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{ADMIN_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/admin/pricing-tiers",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "pricing-tiers"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"REGULAR\",\n  \"multiplier\": \"1.000\",\n  \"active\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "show",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "disabled": false,
+            "type": "default"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{ADMIN_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/admin/shows",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "shows"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"movieId\": \"{{movieId}}\",\n  \"screenId\": \"{{screenId}}\",\n  \"pricingTierId\": \"{{tierId}}\",\n  \"startsAt\": \"{{STARTS_AT}}\",\n  \"endsAt\": \"{{ENDS_AT}}\",\n  \"basePrice\": \"200.00\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {},
+            "exec": [
+              "// 1. Get the base date for 2 days from now",
+              "const targetDate = new Date();",
+              "targetDate.setUTCDate(targetDate.getUTCDate() + 2);",
+              "",
+              "// 2. Calculate STARTS_AT (18:00:00 UTC)",
+              "targetDate.setUTCHours(18, 0, 0, 0);",
+              "const startsAt = targetDate.toISOString().split('.')[0] + 'Z';",
+              "pm.variables.set(\"STARTS_AT\", startsAt);",
+              "",
+              "// 3. Calculate ENDS_AT (20:30:00 UTC)",
+              "targetDate.setUTCHours(20, 30, 0, 0);",
+              "const endsAt = targetDate.toISOString().split('.')[0] + 'Z';",
+              "pm.variables.set(\"ENDS_AT\", endsAt);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refund-policy-tier",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "disabled": false,
+            "type": "default"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{ADMIN_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/admin/refund-policy/tiers",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "refund-policy",
+            "tiers"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"minHoursBeforeShow\": 24,\n  \"refundPercent\": \"100.00\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "discounts",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "disabled": false,
+            "type": "default"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{ADMIN_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/admin/discounts",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "discounts"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"SAVE10\",\n  \"type\": \"PERCENT\",\n  \"value\": \"10.00\",\n  \"validFrom\": \"{{validFrom}}\",\n  \"validUntil\": \"{{validUntil}}\",\n  \"usageLimit\": 100,\n  \"active\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {},
+            "exec": [
+              "const today = new Date();",
+              "today.setUTCHours(0, 0, 0, 0);",
+              "const validFrom = today.toISOString().split('.')[0] + 'Z';",
+              "pm.variables.set(\"validFrom\", validFrom);",
+              "",
+              "",
+              "// ---- 3. validUntil (30 Days From Now at Midnight UTC) ----",
+              "const dateInThirtyDays = new Date();",
+              "dateInThirtyDays.setUTCDate(dateInThirtyDays.getUTCDate() + 30);",
+              "dateInThirtyDays.setUTCHours(0, 0, 0, 0);",
+              "const validUntil = dateInThirtyDays.toISOString().split('.')[0] + 'Z';",
+              "pm.variables.set(\"validUntil\", validUntil);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "shows-in-city",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/public/shows?cityId={{CITY_ID}}",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "public",
+            "shows"
+          ],
+          "query": [
+            {
+              "key": "cityId",
+              "value": "{{CITY_ID}}"
+            }
+          ],
+          "variable": []
+        }
+      }
+    },
+    {
+      "name": "seats",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/public/shows/{{showId}}/seats",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "public",
+            "shows",
+            "{{showId}}",
+            "seats"
+          ],
+          "query": [],
+          "variable": []
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {},
+            "exec": [
+              "if (pm.response.body && Array.isArray(pm.response.body)) {",
+              "  ",
+              "  // 2. Replicate jq: Filter for AVAILABLE seats and extract their IDs",
+              "  const availableSeatIds = pm.response.body",
+              "    .filter(seat => seat.status === \"AVAILABLE\")",
+              "    .map(seat => seat.id);",
+              "    ",
+              "  // 3. Replicate [0:2]: Take the first two seat IDs",
+              "  const seatIdsSelection = availableSeatIds.slice(0, 2);",
+              "  ",
+              "  // 4. Save as a Bruno variable (converts to a JSON string format like [\"id1\", \"id2\"])",
+              "  pm.variables.set(\"SEAT_IDS\", JSON.stringify(seatIdsSelection));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "booking-hold-seat",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "disabled": false,
+            "type": "default"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{CUSTOMER_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/bookings/hold",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bookings",
+            "hold"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"showId\": \"{{showId}}\",\n  \"showSeatIds\": {{SEAT_IDS}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "booking-cancel",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{CUSTOMER_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/bookings/{{bookingId}}/cancel",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bookings",
+            "{{bookingId}}",
+            "cancel"
+          ],
+          "query": [],
+          "variable": []
+        }
+      }
+    },
+    {
+      "name": "booking-confirm",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "",
+            "disabled": false,
+            "type": "default"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{CUSTOMER_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "description": "",
+        "url": {
+          "raw": "http://localhost:8080/api/v1/bookings/{{bookingId}}/confirm",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bookings",
+            "{{bookingId}}",
+            "confirm"
+          ],
+          "query": [],
+          "variable": []
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"method\": \"CARD\",\n  \"instrument\": \"4111111111111111\",\n  \"discountCode\": \"SAVE10\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "ADMIN_TOKEN",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "CITY_ID",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "THEATER_ID",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "screenId",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "movieId",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "tierId",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "STARTS_AT",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "ENDS_AT",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "validFrom",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "validUntil",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "showId",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "CUSTOMER_TOKEN",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "SEAT_IDS",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "bookingId",
+      "value": "",
+      "type": "default"
+    }
+  ]
+}

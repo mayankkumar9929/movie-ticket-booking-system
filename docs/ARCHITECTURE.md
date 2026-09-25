@@ -1,7 +1,4 @@
 # Architecture Plan — Movie Ticket Booking System
-
-> Design document. Nothing here is code yet — this is what we're going to build and why. Every meaningful decision is documented as an **Assumption** so it can flow into the README.
-
 ---
 
 ## 1. Scope
@@ -205,32 +202,6 @@ Each module: `entity/`, `repository/`, `service/`, `controller/`, `dto/`, `mappe
 
 ---
 
-## 11. Dev workflow — commit-by-commit plan
-
-Each bullet is intended as one commit (roughly):
-
-1. `chore: bootstrap pom.xml with web, data-jpa, validation, security, h2, jwt, lombok`
-2. `feat: base error handling + global exception advice`
-3. `feat: user + auth (register/login) with JWT and BCrypt`
-4. `feat: security config with role-based access`
-5. `feat: catalog — city, theater, screen, seat + admin CRUD`
-6. `feat: movie catalog + admin CRUD`
-7. `feat: pricing tiers + admin CRUD`
-8. `feat: show creation with automatic ShowSeat materialization`
-9. `feat: customer browse endpoints (cities, theaters, shows, seat map)`
-10. `feat: booking hold with optimistic locking and multi-seat atomicity`
-11. `feat: mock payment gateway + booking confirmation`
-12. `feat: scheduled hold expiry`
-13. `feat: discount codes applied at confirmation`
-14. `feat: refund policies + cancellation flow`
-15. `feat: async notifications via transactional events`
-16. `feat: reminder scheduler`
-17. `test: integration tests for core flows`
-18. `test: concurrent booking correctness test`
-19. `docs: README with assumptions, API examples, and run instructions`
-
----
-
-## 12. Open questions to resolve before coding
+## 11. Open questions to resolve before coding
 
 None blocking. Any that surface get logged as `A11`, `A12`, ... in the README.
